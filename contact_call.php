@@ -106,3 +106,24 @@ function contact_call_civicrm_entityTypes(&$entityTypes) {
 //  ]);
 //  _contact_call_civix_navigationMenu($menu);
 //}
+
+function contact_call_civicrm_postCommit($op, $objectName, $objectId, &$objectRef) {
+  if ($op == 'create' && $objectName == 'Individual') {
+    $getContact = \Civi\Api4\Contact::get()
+      ->addSelect('created_date')
+      ->addWhere('id', '=', $objectId)
+      ->execute();
+    $contact = $getContact[0];
+    $date = new DateTime($contact['created_date']);
+    $date->modify('+2 day');
+    $callDate = $date->format('Y-m-d');
+    $scheduleCall = \Civi\Api4\Activity::create()
+      ->addValue('source_contact_id', 'user_contact_id')
+      ->addValue('activity_type_id', 2)
+      ->addValue('activity_date_time', $callDate)
+      ->addValue('status_id', 1)
+      ->addValue('target_contact_id', $objectId)
+      ->addValue('subject', 'Welcome Call')
+      ->execute();
+  }
+}
