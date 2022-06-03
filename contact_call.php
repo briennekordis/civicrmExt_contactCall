@@ -106,3 +106,44 @@ function contact_call_civicrm_entityTypes(&$entityTypes) {
 //  ]);
 //  _contact_call_civix_navigationMenu($menu);
 //}
+/**
+ * Assigns a greeting prefix to a new contact
+ */
+function _assignGreeting($objectId, $contactGender) {
+  $prefix = 'Mx.';
+  if ($contactGender == 'Female') {
+    $prefix = 'Ms.';
+  }
+  elseif ($contactGender == 'Male') {
+    $prefix = 'Mr.';
+  }
+  \Civi\Api4\Contact::update()
+    ->addValue('prefix_id:name', $prefix)
+    ->addWhere('id', '=', $objectId)
+    ->execute();
+}
+
+/**
+ * Schedules a call with a new contact
+ */
+function contact_call_civicrm_postCommit($op, $objectName, $objectId, &$objectRef) {
+  if ($op == 'create' && $objectName == 'Individual') {
+    $contact = \Civi\Api4\Contact::get()
+      ->addSelect('created_date', 'gender_id:name')
+      ->addWhere('id', '=', $objectId)
+      ->execute()
+      ->first();
+    _assignGreeting($objectId, $contact['gender_id:name']);
+    $date = new DateTime($contact['created_date']);
+    $date->modify('+2 day');
+    $callDate = $date->format('Y-m-d');
+    \Civi\Api4\Activity::create()
+      ->addValue('source_contact_id', 'user_contact_id')
+      ->addValue('activity_type_id:name', 'Phone Call')
+      ->addValue('activity_date_time', $callDate)
+      ->addValue('status_id:name', 'Scheduled')
+      ->addValue('target_contact_id', $objectId)
+      ->addValue('subject', 'Welcome Call')
+      ->execute();
+  }
+}
