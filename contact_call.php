@@ -109,7 +109,7 @@ function contact_call_civicrm_entityTypes(&$entityTypes) {
 /**
  * Assigns a greeting prefix to a new contact
  */
-function _assignGreeting($objectId, $contactGender) {
+function _assignPrefix($objectId, $contactGender) {
   $prefix = 'Mx.';
   if ($contactGender == 'Female') {
     $prefix = 'Ms.';
@@ -133,7 +133,7 @@ function contact_call_civicrm_postCommit($op, $objectName, $objectId, &$objectRe
       ->addWhere('id', '=', $objectId)
       ->execute()
       ->first();
-    _assignGreeting($objectId, $contact['gender_id:name']);
+    _assignPrefix($objectId, $contact['gender_id:name']);
     $date = new DateTime($contact['created_date']);
     $date->modify('+2 day');
     $callDate = $date->format('Y-m-d');
