@@ -2,6 +2,8 @@
 
 require_once 'contact_call.civix.php';
 // phpcs:disable
+
+use Civi\Api4\Activity;
 use CRM_ContactCall_ExtensionUtil as E;
 // phpcs:enable
 
@@ -106,3 +108,67 @@ function contact_call_civicrm_entityTypes(&$entityTypes) {
 //  ]);
 //  _contact_call_civix_navigationMenu($menu);
 //}
+
+/**
+ * Assigns a greeting prefix to a new contact
+ */
+function _assignPrefix($objectId, $contactGender) {
+  $prefix = 'Mx.';
+  if ($contactGender == 'Female') {
+    $prefix = 'Ms.';
+  }
+  elseif ($contactGender == 'Male') {
+    $prefix = 'Mr.';
+  }
+  \Civi\Api4\Contact::update()
+    ->addValue('prefix_id:name', $prefix)
+    ->addWhere('id', '=', $objectId)
+    ->execute();
+}
+
+function update_civicrm_post($op, $objectName, $objectId, &$objectRef) {
+  if ($objectRef->gender_id !== NULL) {
+    $GENDER_OPTION_GROUP_ID = 3;
+    if ($op == 'edit' && $objectName == 'Individual') {
+      $genderId = intval($objectRef->gender_id);
+      $prefixId = intval($objectRef->prefix_id);
+      if ($prefixId !== 4 && !($genderId == 1 && $prefixId == 1)
+        && !($genderId == 1 && $prefixId == 2)
+        && !($genderId == 2 && $prefixId == 3)
+        && !($genderId == 1 && $prefixId == 1)
+        && !($genderId == 3 && $prefixId == 5)) {
+        $gender = \Civi\Api4\OptionValue::get()
+          ->addWhere('option_group_id', '=', $GENDER_OPTION_GROUP_ID)
+          ->addWhere('value', '=', $genderId)
+          ->execute()
+          ->first();
+        _assignPrefix($objectId, $gender['name']);
+      }
+    }
+  }
+}
+
+/**
+ * Schedules a call with a new contact
+ */
+function contact_call_civicrm_postCommit($op, $objectName, $objectId, &$objectRef) {
+  if ($op == 'create' && $objectName == 'Individual') {
+    $contact = \Civi\Api4\Contact::get()
+      ->addSelect('created_date', 'gender_id:name')
+      ->addWhere('id', '=', $objectId)
+      ->execute()
+      ->first();
+    _assignPrefix($objectId, $contact['gender_id:name']);
+    $date = new DateTime($contact['created_date']);
+    $date->modify('+2 day');
+    $callDate = $date->format('Y-m-d');
+    \Civi\Api4\Activity::create()
+      ->addValue('source_contact_id', 'user_contact_id')
+      ->addValue('activity_type_id:name', 'Phone Call')
+      ->addValue('activity_date_time', $callDate)
+      ->addValue('status_id:name', 'Scheduled')
+      ->addValue('target_contact_id', $objectId)
+      ->addValue('subject', 'Welcome Call')
+      ->execute();
+  }
+}
