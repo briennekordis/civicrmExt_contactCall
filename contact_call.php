@@ -107,20 +107,22 @@ function contact_call_civicrm_entityTypes(&$entityTypes) {
 //  _contact_call_civix_navigationMenu($menu);
 //}
 /**
- * Assigns a greeting prefix to a new contact
+ * Assigns prefix to contact based on gender 
  */
-function _assignPrefix($objectId, $contactGender) {
-  $prefix = 'Mx.';
-  if ($contactGender == 'Female') {
-    $prefix = 'Ms.';
+function update_civicrm_pre($op, $objectName, $id, &$params) {
+  if (isset($params['gender_id'])) {
+    if (($op == 'edit' || $op == 'create') && $objectName == 'Individual') {
+      if ($params['gender_id'] == '1') {
+        $params['prefix_id'] = '2';
+      }
+      elseif ($params['gender_id'] == '2') {
+        $params['prefix_id'] = '3';
+      }
+      else {
+        $params['prefix_id'] = '5';
+      }
+    }
   }
-  elseif ($contactGender == 'Male') {
-    $prefix = 'Mr.';
-  }
-  \Civi\Api4\Contact::update()
-    ->addValue('prefix_id:name', $prefix)
-    ->addWhere('id', '=', $objectId)
-    ->execute();
 }
 
 /**
@@ -128,13 +130,7 @@ function _assignPrefix($objectId, $contactGender) {
  */
 function contact_call_civicrm_postCommit($op, $objectName, $objectId, &$objectRef) {
   if ($op == 'create' && $objectName == 'Individual') {
-    $contact = \Civi\Api4\Contact::get()
-      ->addSelect('created_date', 'gender_id:name')
-      ->addWhere('id', '=', $objectId)
-      ->execute()
-      ->first();
-    _assignPrefix($objectId, $contact['gender_id:name']);
-    $date = new DateTime($contact['created_date']);
+    $date = new DateTime();
     $date->modify('+2 day');
     $callDate = $date->format('Y-m-d');
     \Civi\Api4\Activity::create()
@@ -147,3 +143,4 @@ function contact_call_civicrm_postCommit($op, $objectName, $objectId, &$objectRe
       ->execute();
   }
 }
+
