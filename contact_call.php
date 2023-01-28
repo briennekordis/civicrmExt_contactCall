@@ -2,6 +2,8 @@
 
 require_once 'contact_call.civix.php';
 // phpcs:disable
+
+use Civi\Api4\Activity;
 use CRM_ContactCall_ExtensionUtil as E;
 // phpcs:enable
 
@@ -106,6 +108,7 @@ function contact_call_civicrm_entityTypes(&$entityTypes) {
 //  ]);
 //  _contact_call_civix_navigationMenu($menu);
 //}
+
 /**
  * Assigns a greeting prefix to a new contact
  */
@@ -123,6 +126,27 @@ function _assignPrefix($objectId, $contactGender) {
     ->execute();
 }
 
+function update_civicrm_post($op, $objectName, $objectId, &$objectRef) {
+  if ($objectRef->gender_id !== NULL) {
+    $GENDER_OPTION_GROUP_ID = 3;
+    if ($op == 'edit' && $objectName == 'Individual') {
+      $genderId = intval($objectRef->gender_id);
+      $prefixId = intval($objectRef->prefix_id);
+      if ($prefixId !== 4 && !($genderId == 1 && $prefixId == 1)
+        && !($genderId == 1 && $prefixId == 2)
+        && !($genderId == 2 && $prefixId == 3)
+        && !($genderId == 1 && $prefixId == 1)
+        && !($genderId == 3 && $prefixId == 5)) {
+        $gender = \Civi\Api4\OptionValue::get()
+          ->addWhere('option_group_id', '=', $GENDER_OPTION_GROUP_ID)
+          ->addWhere('value', '=', $genderId)
+          ->execute()
+          ->first();
+        _assignPrefix($objectId, $gender['name']);
+      }
+    }
+  }
+}
 /**
  * Schedules a call with a new contact
  */
