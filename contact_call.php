@@ -147,7 +147,6 @@ function update_civicrm_post($op, $objectName, $objectId, &$objectRef) {
     }
   }
 }
-
 /**
  * Schedules a call with a new contact
  */
